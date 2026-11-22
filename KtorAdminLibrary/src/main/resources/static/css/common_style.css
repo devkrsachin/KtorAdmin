@@ -383,3 +383,84 @@ body {
 #menu-expand-icon.expanded {
     transform: rotateY(180deg);
 }
+/* ------------------------------------------------------------------
+ * Themed <select> dropdown popups
+ * ------------------------------------------------------------------ */
+
+/* Native popups (all browsers) follow the admin's light/dark theme. */
+:root {
+    color-scheme: light;
+}
+
+:root.theme-dark {
+    color-scheme: dark;
+}
+
+:root select:not([multiple]) option {
+    background-color: var(--white);
+    color: var(--primary-color);
+}
+
+/* Customizable select (Chromium 135+): rounded, themed popup that matches
+ * the header menu. Other browsers keep the native popup shape. */
+@supports (appearance: base-select) {
+    :root select:not([multiple]),
+    ::picker(select) {
+        appearance: base-select !important;
+    }
+
+    /* Keep the selected value vertically centred in the fixed-height field. */
+    :root select:not([multiple]) {
+        align-items: center;
+        /* Left text inset of the field, so options line up with it. */
+        --select-text-inset: 12px;
+    }
+
+    :root select.filter-field {
+        --select-text-inset: 24px;
+    }
+
+    :root select.actions-input {
+        --select-text-inset: 16px;
+    }
+
+    /* The selects already draw their own arrow via a background image. */
+    :root select:not([multiple])::picker-icon {
+        display: none;
+    }
+
+    /* Selection is shown by highlight + weight instead of a ✓ column. */
+    :root select:not([multiple]) option::checkmark {
+        display: none;
+    }
+
+    ::picker(select) {
+        margin-top: 4px;
+        padding: 4px;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        background-color: var(--white-transparent-80);
+        backdrop-filter: blur(8px);
+        color: var(--primary-color);
+        box-shadow: 0 8px 24px var(--transparent-black-10);
+    }
+
+    :root select:not([multiple]) option {
+        /* 5px = picker border (1px) + picker padding (4px) */
+        padding: 10px 12px 10px calc(var(--select-text-inset) - 5px);
+        border-radius: 8px;
+        background-color: transparent;
+        cursor: pointer;
+    }
+
+    :root select:not([multiple]) option:hover,
+    :root select:not([multiple]) option:focus-visible {
+        background-color: var(--table-hover-row-color);
+        outline: none;
+    }
+
+    :root select:not([multiple]) option:checked {
+        font-weight: 600;
+        background-color: var(--table-even-row-color);
+    }
+}
