@@ -14,8 +14,13 @@ fun resolveVersionFromGit(): String {
             logger.warn("git describe failed (exit=$exitCode): $error")
             "0.0.0"
         } else {
-            val cleaned = output.removePrefix("v")
-            val versionRegex = Regex("^\\d+\\.\\d+\\.\\d+")
+            // Drop "-dirty" and the "-<commits>-g<sha>" part git describe adds after the tag,
+            // keeping a pre-release suffix from the tag itself (e.g. "1.6.1-ezymoney.1").
+            val cleaned = output
+                .removePrefix("v")
+                .removeSuffix("-dirty")
+                .replace(Regex("-\\d+-g[0-9a-f]+$"), "")
+            val versionRegex = Regex("^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.]+)?$")
             val match = versionRegex.find(cleaned)
 
             if (match == null) {

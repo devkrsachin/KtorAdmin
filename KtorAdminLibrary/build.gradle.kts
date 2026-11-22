@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.binary.compatibility.validator)
 }
 
-group = "io.github.amirroid"
+group = "io.github.devkrsachin"
 
 val projectName = "KtorAdmin"
 
@@ -37,9 +37,9 @@ mavenPublishing {
     pom {
         name = projectName
         description =
-            "KtorAdmin is a dynamic admin panel for Ktor applications, supporting ORM structures without predefined schemas and simplifying data management with advanced features."
+            "Fork of KtorAdmin (github.com/Amirroid/KtorAdmin), a dynamic admin panel for Ktor applications, with additional fixes and improvements."
         inceptionYear = "2025"
-        url = "https://github.com/Amirroid/KtorAdmin"
+        url = "https://github.com/devkrsachin/KtorAdmin"
         licenses {
             license {
                 name = "The MIT License"
@@ -53,11 +53,16 @@ mavenPublishing {
                 name = "Amirreza Gholami"
                 url = "https://github.com/Amirroid"
             }
+            developer {
+                id = "devkrsachin"
+                name = "Sachin"
+                url = "https://github.com/devkrsachin"
+            }
         }
         scm {
-            url = "https://github.com/amirroid/KtorAdmin"
-            connection = "scm:git:git://github.com/Amirroid/KtorAdmin.git"
-            developerConnection = "scm:git:ssh://git@github.com/Amirroid/KtorAdmin.git"
+            url = "https://github.com/devkrsachin/KtorAdmin"
+            connection = "scm:git:git://github.com/devkrsachin/KtorAdmin.git"
+            developerConnection = "scm:git:ssh://git@github.com/devkrsachin/KtorAdmin.git"
         }
     }
 }
