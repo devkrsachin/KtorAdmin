@@ -224,7 +224,8 @@ document.querySelector("form").addEventListener("submit", (e) => {
 
 
 function goToConfigurationEditUrl(field) {
-    window.location.href = cleanUrl().toString() + "/" + field
+    // Keep ?returnTo=... so saving the confirmation also returns to the original list view.
+    window.location.href = cleanUrl().toString() + "/" + field + window.location.search
 }
 
 let editActionKey = "";

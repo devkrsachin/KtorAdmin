@@ -267,8 +267,16 @@ function performSearch(element) {
     }
 }
 
+// Query string passed to the add/edit page so saving returns to this exact list view
+// (page, search, filters, ordering). The server reads it back in respondBack().
+function returnToQuery() {
+    return window.location.search
+        ? "?returnTo=" + encodeURIComponent(window.location.search)
+        : "";
+}
+
 function redirectToEdit(id) {
-    window.location.href = cleanUrl().toString() + "/" + id;
+    window.location.href = cleanUrl().toString() + "/" + id + returnToQuery();
 }
 
 
@@ -426,7 +434,7 @@ function closeFiltersOrNavigateToAdd() {
             row.classList.remove("hide")
         }
     } else {
-        window.location.href = cleanUrl().toString() + "/add"
+        window.location.href = cleanUrl().toString() + "/add" + returnToQuery()
     }
 }
 

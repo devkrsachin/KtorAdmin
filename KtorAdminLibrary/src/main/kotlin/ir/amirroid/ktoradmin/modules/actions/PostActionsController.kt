@@ -1,6 +1,7 @@
 package ir.amirroid.ktoradmin.modules.actions
 
 import io.ktor.http.HttpHeaders
+import io.ktor.http.Url
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -11,8 +12,10 @@ import ir.amirroid.ktoradmin.panels.AdminMongoCollection
 import ir.amirroid.ktoradmin.panels.AdminPanel
 import ir.amirroid.ktoradmin.panels.getAllCustomActions
 import ir.amirroid.ktoradmin.utils.Constants
+import ir.amirroid.ktoradmin.utils.RETURN_TO_PARAM
 import ir.amirroid.ktoradmin.utils.badRequest
 import ir.amirroid.ktoradmin.utils.invalidateRequest
+import ir.amirroid.ktoradmin.utils.listQueryFromReturnTo
 import ir.amirroid.ktoradmin.utils.notFound
 import ir.amirroid.ktoradmin.validators.checkHasRole
 import kotlinx.serialization.json.Json
@@ -111,7 +114,9 @@ private fun getActionRedirectUrl(
             .containsMatchIn(referrer)
 
     return if (isEditPage && !allowEditPageRedirect) {
-        listUrl
+        // Back to the list view the edit page was opened from (page, filters, ...).
+        val returnTo = runCatching { Url(referrer).parameters[RETURN_TO_PARAM] }.getOrNull()
+        listUrl + listQueryFromReturnTo(returnTo)
     } else {
         referrer
     }
