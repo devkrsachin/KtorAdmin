@@ -29,6 +29,7 @@ import ir.amirroid.ktoradmin.models.chart.getFieldFunctionBasedOnAggregationFunc
 import ir.amirroid.ktoradmin.models.chart.getFieldNameBasedOnAggregationFunction
 import ir.amirroid.ktoradmin.models.common.DisplayItem
 import ir.amirroid.ktoradmin.models.common.Reference
+import ir.amirroid.ktoradmin.models.common.TimestampData
 import ir.amirroid.ktoradmin.models.common.foreignKey
 import ir.amirroid.ktoradmin.models.common.tableName
 import ir.amirroid.ktoradmin.models.getCurrentDateClass
@@ -45,6 +46,7 @@ import ir.amirroid.ktoradmin.provider.defaultvalue.DefaultValueProviderRegistry
 import ir.amirroid.ktoradmin.utils.formatAsIntegerIfPossible
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.Timestamp
 import kotlin.collections.plus
 
 /**
@@ -214,6 +216,12 @@ internal object JdbcQueriesRepository {
             } else {
                 value.formatToDisplayInTable(type)
             }
+        } else if (value is Timestamp && type == ColumnType.TIMESTAMP_WITH_TIMEZONE) {
+            // Sent as a UTC instant so the list page can show it in the browser's time zone.
+            TimestampData(
+                isoInstant = value.toInstant().toString(),
+                display = value.formatToDisplayInTable(type),
+            )
         } else {
             value.formatToDisplayInTable(type)
         }

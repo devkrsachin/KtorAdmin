@@ -379,6 +379,10 @@
                                     <td class="inline-editable-cell" data-field-name="$fieldName" data-field-type="$field.type.name" data-primary-key="$row.primaryKey" data-value="$!item">
                                         <div class="item-text inline-editable-text">$!item</div>
                                     </td>
+                                #elseif($field.type.name == "TIMESTAMP_WITH_TIMEZONE" and $!item.isoInstant)
+                                    <td>
+                                        <div class="item-text"><time class="local-datetime" datetime="$item.isoInstant" title="$item.isoInstant">$item.display</time></div>
+                                    </td>
                                 #else
                                     <td>
                                         <div class="item-text">$!item</div>
@@ -536,5 +540,6 @@
 </script>
 <script src="/static/js/common.js"></script>
 <script src="/static/js/table_list.js"></script>
+<script src="/static/js/local_datetime.js"></script>
 </body>
 </html>
