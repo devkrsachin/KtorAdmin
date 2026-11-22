@@ -79,7 +79,11 @@ jobs:
           VERSION: ${{ steps.v.outputs.version }}
         run: |
           branch="deps/ktor-admin-$VERSION"
-          if [ "$(gh pr list -R "$BACKEND_REPO" --head "$branch" --state all --json number --jq length)" != "0" ]; then
+          existing=$(gh pr list -R "$BACKEND_REPO" --head "$branch" --state all --json number --jq length) || {
+            echo "::error::Couldn't list pull requests in $BACKEND_REPO. Check that BACKEND_PR_TOKEN has 'Pull requests: Read and write' on that repo (and is approved by the org, if required)."
+            exit 1
+          }
+          if [ "$existing" != "0" ]; then
             echo "A PR for $branch already exists; nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
