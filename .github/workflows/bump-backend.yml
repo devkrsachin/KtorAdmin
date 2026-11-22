@@ -1,0 +1,116 @@
+name: Bump ktor-backend
+
+# After a successful Release, wait for the version to be downloadable from Maven Central, then
+# open a PR in pocket-book-app/ktor-backend that moves it to that version. Merging the PR stays
+# a manual step: that's what takes the change towards production.
+#
+# Secrets:
+#   BACKEND_PR_TOKEN - fine-grained PAT (resource owner: pocket-book-app) for ktor-backend with
+#                      Contents + Pull requests read/write.
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Published version to bump to, e.g. 1.6.1-ezymoney.2"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  BACKEND_REPO: pocket-book-app/ktor-backend
+  BACKEND_BASE: main
+  ARTIFACT_PATH: io/github/devkrsachin/KtorAdmin
+
+jobs:
+  bump:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    steps:
+      - name: Resolve version
+        id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          version="${INPUT_VERSION:-${RELEASE_TAG#v}}"
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-ezymoney\.[0-9]+$ ]]; then
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+          else
+            echo "'$version' isn't a <x.y.z>-ezymoney.<n> release; not bumping ktor-backend." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Wait for Maven Central
+        if: steps.v.outputs.version
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          url="https://repo1.maven.org/maven2/$ARTIFACT_PATH/$VERSION/KtorAdmin-$VERSION.pom"
+          for i in $(seq 1 90); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url")" = 200 ]; then
+              echo "$VERSION is on Maven Central (after ~$i min)."
+              exit 0
+            fi
+            sleep 60
+          done
+          echo "::error::$VERSION still isn't on Maven Central after 90 minutes. Check the deployment on central.sonatype.com, then re-run this workflow."
+          exit 1
+
+      - name: Checkout ktor-backend
+        if: steps.v.outputs.version
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.BACKEND_REPO }}
+          ref: ${{ env.BACKEND_BASE }}
+          token: ${{ secrets.BACKEND_PR_TOKEN }}
+          path: backend
+
+      - name: Open PR
+        if: steps.v.outputs.version
+        working-directory: backend
+        env:
+          GH_TOKEN: ${{ secrets.BACKEND_PR_TOKEN }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: |
+          branch="deps/ktor-admin-$VERSION"
+          if [ "$(gh pr list -R "$BACKEND_REPO" --head "$branch" --state all --json number --jq length)" != "0" ]; then
+            echo "A PR for $branch already exists; nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          catalog=gradle/libs.versions.toml
+          current=$(sed -nE 's/^ktor-admin = "([^"]+)".*/\1/p' "$catalog")
+          if [ "$current" = "$VERSION" ]; then
+            echo "ktor-backend already uses $VERSION; nothing to do." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          sed -i -E \
+            -e "s/^ktor-admin = \"[^\"]+\"/ktor-admin = \"$VERSION\"/" \
+            -e 's/module = "io\.github\.[A-Za-z0-9]+:KtorAdmin"/module = "io.github.devkrsachin:KtorAdmin"/' \
+            "$catalog"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "build: update KtorAdmin to $VERSION"
+          git push origin "$branch"
+
+          release_url="https://github.com/$GITHUB_REPOSITORY/releases/tag/$VERSION"
+          gh pr create -R "$BACKEND_REPO" --base "$BACKEND_BASE" --head "$branch" \
+            --title "build: update KtorAdmin to $VERSION" \
+            --body "$(cat <<EOF
+          Updates the admin panel library \`io.github.devkrsachin:KtorAdmin\` from \`$current\` to \`$VERSION\`.
+
+          - Release: $release_url
+          - Opened automatically by the [Bump ktor-backend](https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID) workflow in the KtorAdmin fork.
+
+          Before merging, check CI and skim the release for dependency upgrades (Ktor, Kotlin, Exposed) that could change runtime behaviour, and try the admin panel locally if anything looks risky.
+          EOF
+          )"
+          echo "Opened PR for $VERSION in $BACKEND_REPO." >> "$GITHUB_STEP_SUMMARY"

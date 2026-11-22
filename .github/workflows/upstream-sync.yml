@@ -1,0 +1,162 @@
+name: Upstream sync
+
+# Daily: if amirroid/KtorAdmin has a release this fork hasn't synced yet, merge it into
+# `ezymoney`, build + test it, and release it as `<upstream-version>-ezymoney.1`.
+# Creating that release triggers the Release workflow (publish to Maven Central), whose
+# success triggers "Bump ktor-backend" (opens a PR there).
+#
+# On a merge conflict or build failure nothing is pushed; an issue is opened instead.
+#
+# Secrets:
+#   FORK_PUSH_TOKEN - fine-grained PAT for this repo with Contents + Workflows read/write.
+#                     Needed because upstream changes often touch .github/workflows (which the
+#                     default token can't push), and so the release it creates triggers Release.
+on:
+  schedule:
+    - cron: "30 3 * * *" # 03:30 UTC / 09:00 IST
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Upstream release tag to sync (default: latest upstream release)"
+        required: false
+
+concurrency:
+  group: upstream-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  UPSTREAM_REPO: amirroid/KtorAdmin
+  BRANCH: ezymoney
+
+jobs:
+  check:
+    name: Check for a new upstream release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.upstream.outputs.tag }}
+      release_tag: ${{ steps.upstream.outputs.release_tag }}
+      skip: ${{ steps.upstream.outputs.skip }}
+    steps:
+      - name: Find upstream release
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.upstream_tag }}
+        run: |
+          tag="${INPUT_TAG:-$(gh api "repos/$UPSTREAM_REPO/releases/latest" --jq .tag_name)}"
+          version="${tag#v}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${version}-ezymoney.1" >> "$GITHUB_OUTPUT"
+
+          # Synced already if any <version>-ezymoney.N tag exists here.
+          synced=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/${version}-ezymoney." --jq 'length')
+          if [ "$synced" != "0" ]; then
+            echo "Upstream $tag is already synced (a ${version}-ezymoney.N release exists)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "New upstream release: $tag" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  sync:
+    name: Merge, build and release
+    needs: check
+    if: needs.check.outputs.skip == 'false'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ needs.check.outputs.tag }}
+      RELEASE_TAG: ${{ needs.check.outputs.release_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ secrets.FORK_PUSH_TOKEN }}
+
+      - name: Merge upstream release
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "https://github.com/$UPSTREAM_REPO.git"
+          git fetch --no-tags upstream master "refs/tags/$TAG:refs/tags/$TAG"
+
+          if ! git merge --no-ff --no-edit -m "Merge upstream $TAG into $BRANCH" "refs/tags/$TAG"; then
+            git diff --name-only --diff-filter=U > "$RUNNER_TEMP/conflicts.txt"
+            git merge --abort
+            echo "::error::Merge conflict with upstream $TAG"
+            exit 1
+          fi
+
+      - name: Setup JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25.0.4+101.0.LTS
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: KtLint Check
+        run: ./gradlew ktlintCheck
+
+      - name: Build and test
+        run: ./gradlew clean build --no-configuration-cache
+
+      - name: Push and create release
+        env:
+          GH_TOKEN: ${{ secrets.FORK_PUSH_TOKEN }}
+        run: |
+          # Keep master a mirror of upstream (fast-forward only; not needed for the release).
+          git push origin "refs/remotes/upstream/master:refs/heads/master" \
+            || echo "::warning::master couldn't be fast-forwarded to upstream/master"
+
+          git push origin "HEAD:refs/heads/$BRANCH"
+          gh release create "$RELEASE_TAG" \
+            --target "$(git rev-parse HEAD)" \
+            --title "$RELEASE_TAG" \
+            --notes "Upstream [$TAG](https://github.com/$UPSTREAM_REPO/releases/tag/$TAG) merged into \`$BRANCH\` by the Upstream sync workflow. Published as \`io.github.devkrsachin:KtorAdmin:$RELEASE_TAG\`."
+          echo "Released $RELEASE_TAG ($(git rev-parse --short HEAD))." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Upstream sync of $TAG failed"
+          {
+            echo "The [Upstream sync run]($RUN_URL) couldn't release upstream \`$TAG\`. Nothing was pushed."
+            echo
+            if [ -s "$RUNNER_TEMP/conflicts.txt" ]; then
+              echo "**Merge conflict** in:"
+              sed 's/.*/- `&`/' "$RUNNER_TEMP/conflicts.txt"
+              echo
+            else
+              echo "The merge succeeded but a later step (ktlint, build or tests) failed; see the run log."
+              echo
+            fi
+            echo "To fix it locally:"
+            echo '```'
+            echo "git fetch upstream --tags"
+            echo "git checkout $BRANCH && git merge $TAG"
+            echo "# resolve / fix, then:"
+            echo "./gradlew ktlintCheck build"
+            echo "git push origin $BRANCH"
+            echo "gh release create $RELEASE_TAG --target $BRANCH --title $RELEASE_TAG"
+            echo '```'
+          } > "$RUNNER_TEMP/issue.md"
+          cat "$RUNNER_TEMP/issue.md" >> "$GITHUB_STEP_SUMMARY"
+
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file "$RUNNER_TEMP/issue.md"
+          else
+            gh issue create --title "$title" --body-file "$RUNNER_TEMP/issue.md"
+          fi

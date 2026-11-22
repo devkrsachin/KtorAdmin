@@ -41,4 +41,5 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
-        run: ./gradlew :KtorAdminLibrary:publishToMavenCentral --no-configuration-cache --stacktrace
+        # publishAndRelease: released automatically once Central validates it (no manual "Publish" click).
+        run: ./gradlew :KtorAdminLibrary:publishAndReleaseToMavenCentral --no-configuration-cache --stacktrace
