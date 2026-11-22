@@ -42,9 +42,9 @@ fun Application.configureAdmin(database: Database) {
     install(KtorAdmin) {
         jdbc(
             key = null,
-            url = "jdbc:postgresql://localhost:5432/postgres",
-            username = "amirreza",
-            password = "your_password",
+            url = SampleEnv.dbUrl,
+            username = SampleEnv.dbUser,
+            password = SampleEnv.dbPassword,
             driver = JDBCDrivers.POSTGRES
         )
 //        val dataSource =
@@ -62,14 +62,16 @@ fun Application.configureAdmin(database: Database) {
 //            key = null,
 //            dataSource = dataSource
 //        )
-        mongo(
-            key = null,
-            databaseName = "0@localhost",
-            address = MongoServerAddress("localhost", 27017),
-            credential = MongoCredential(
-                "amirreza", "admin", "your_password"
-            ),
-        )
+        SampleEnv.mongoHost?.let { host ->
+            mongo(
+                key = null,
+                databaseName = SampleEnv.mongoDb,
+                address = MongoServerAddress(host, SampleEnv.mongoPort),
+                credential = MongoCredential(
+                    SampleEnv.mongoUser, SampleEnv.mongoAuthDb, SampleEnv.mongoPassword
+                ),
+            )
+        }
         fileDeleteStrategy = FileDeleteStrategy.DELETE
         authenticateName = "admin"
         mediaPath = MEDIA_PATH

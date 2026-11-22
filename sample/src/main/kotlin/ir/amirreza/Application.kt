@@ -9,10 +9,10 @@ fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 fun Application.module() {
     val database =
         Database.connect(
-            url = "jdbc:postgresql://localhost:5432/postgres",
-            user = "amirreza",
+            url = SampleEnv.dbUrl,
+            user = SampleEnv.dbUser,
             driver = "org.postgresql.Driver",
-            password = "your_password",
+            password = SampleEnv.dbPassword,
         )
     configureSecurity()
     configureSerialization()

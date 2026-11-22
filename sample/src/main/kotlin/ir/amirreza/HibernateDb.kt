@@ -7,6 +7,9 @@ import org.hibernate.SessionFactory
 object HibernateUtil {
     val sessionFactory: SessionFactory = org.hibernate.cfg.Configuration()
         .configure()
+        .setProperty("hibernate.connection.url", SampleEnv.dbUrl)
+        .setProperty("hibernate.connection.username", SampleEnv.dbUser)
+        .setProperty("hibernate.connection.password", SampleEnv.dbPassword)
         .addAnnotatedClass(Post::class.java)
         .addAnnotatedClass(Author::class.java)
         .buildSessionFactory()
