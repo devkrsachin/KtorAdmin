@@ -252,6 +252,13 @@ document.addEventListener('DOMContentLoaded', function () {
     handleSearches()
 });
 
+// Restore after layout is final (fonts, images), so the saved offsets line up.
+if (document.readyState === "complete") {
+    restoreListPosition()
+} else {
+    window.addEventListener("load", restoreListPosition, {once: true})
+}
+
 function performSearch(element) {
     const query = element.value;
     if (query) {
@@ -275,7 +282,63 @@ function returnToQuery() {
         : "";
 }
 
+// Remembers where the list was scrolled (and which row was opened) so coming back to the same
+// list view restores it. Kept in sessionStorage, so it's per tab and one-shot.
+const LIST_POSITION_KEY = "ktorAdmin.listPosition";
+const LIST_POSITION_MAX_AGE_MS = 60 * 60 * 1000;
+
+// Identifies a list view by path + query, ignoring parameter order and encoding differences
+// (the server re-encodes the query when redirecting back after a save).
+function listViewKey() {
+    const params = new URLSearchParams(window.location.search);
+    params.sort();
+    return window.location.pathname.replace(/\/+$/, "") + "?" + params.toString();
+}
+
+function saveListPosition(primaryKey) {
+    const scroller = document.getElementById("bottom-box");
+    try {
+        sessionStorage.setItem(LIST_POSITION_KEY, JSON.stringify({
+            view: listViewKey(),
+            top: scroller ? scroller.scrollTop : 0,
+            left: scroller ? scroller.scrollLeft : 0,
+            windowTop: window.scrollY,
+            primaryKey: primaryKey ?? null,
+            savedAt: Date.now(),
+        }));
+    } catch (_) {
+        // Storage unavailable (e.g. privacy mode): just don't restore.
+    }
+}
+
+function restoreListPosition() {
+    let saved;
+    try {
+        saved = JSON.parse(sessionStorage.getItem(LIST_POSITION_KEY));
+        sessionStorage.removeItem(LIST_POSITION_KEY);
+    } catch (_) {
+        return;
+    }
+    if (!saved || saved.view !== listViewKey() || Date.now() - saved.savedAt > LIST_POSITION_MAX_AGE_MS) return;
+
+    const scroller = document.getElementById("bottom-box");
+    if (scroller) {
+        scroller.scrollTop = saved.top;
+        scroller.scrollLeft = saved.left;
+    }
+    window.scrollTo(0, saved.windowTop || 0);
+
+    if (saved.primaryKey == null) return;
+    const row = document.querySelector(`tr.row[data-primary-key="${CSS.escape(String(saved.primaryKey))}"]`);
+    if (!row) return;
+    // If the row moved (e.g. edited values changed the sort order), bring it into view.
+    row.scrollIntoView({block: "nearest"});
+    row.classList.add("row-returned");
+    row.addEventListener("animationend", () => row.classList.remove("row-returned"), {once: true});
+}
+
 function redirectToEdit(id) {
+    saveListPosition(id);
     window.location.href = cleanUrl().toString() + "/" + id + returnToQuery();
 }
 
@@ -434,6 +497,7 @@ function closeFiltersOrNavigateToAdd() {
             row.classList.remove("hide")
         }
     } else {
+        saveListPosition(null)
         window.location.href = cleanUrl().toString() + "/add" + returnToQuery()
     }
 }

@@ -966,3 +966,13 @@ th:last-child::before {
     0% { background-color: rgba(255, 69, 58, 0.4); outline: 2px solid #ff453a; }
     100% { background-color: transparent; outline: 2px solid transparent; }
 }
+/* Briefly highlights the row you return to after editing it (see restoreListPosition). */
+tbody tr.row-returned td {
+    animation: row-returned 2s ease-out;
+}
+
+@keyframes row-returned {
+    0%, 50% {
+        background-color: color-mix(in srgb, var(--secondary-color) 35%, transparent);
+    }
+}
