@@ -8,8 +8,8 @@ import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader
 fun Application.configureTemplating() {
     if (pluginOrNull(Velocity) == null) {
         install(Velocity) {
-            setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath")
-            setProperty("classpath.resource.loader.class", ClasspathResourceLoader::class.java.name)
+            setProperty(RuntimeConstants.RESOURCE_LOADERS, "classpath")
+            setProperty("resource.loader.classpath.class", ClasspathResourceLoader::class.java.name)
         }
     }
 }
