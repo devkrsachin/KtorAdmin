@@ -144,6 +144,8 @@ function expandOrShrinkSidebar() {
         sidebar.style.backgroundColor = getCSSVariable("--white-transparent-70")
         sidebar.style.backdropFilter = "blur(8px)"
         sidebar.style.border = "1px solid hsla(213, 10%, 18%, 0.1)"
+        // The list page also reserves room on the right for a docked filters panel.
+        if (typeof applyFilterInset === "function") applyFilterInset()
     } else {
         localStorage.setItem("sidebarExpanded", expandedSidebarValue)
         expandSidebar(icon, container, sidebar, menuIcon)
@@ -159,6 +161,8 @@ function expandSidebar(icon, container, sidebar, menuIcon) {
     sidebar.style.backgroundColor = getCSSVariable("--white-transparent-60")
     sidebar.style.backdropFilter = "none"
     sidebar.style.border = "none"
+    // The list page also reserves room on the right for a docked filters panel.
+    if (typeof applyFilterInset === "function") applyFilterInset()
 }
 
 

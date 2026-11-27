@@ -113,6 +113,7 @@
         <button class="perform-action" onclick="openActionDialog()">$translations['perform']</button>
         #if($filtersData.size != 0)
             <div class="filter-button" onclick="toggleFilter()">
+                <span class="filter-count"></span>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                      xmlns="http://www.w3.org/2000/svg">
                     <path
@@ -130,72 +131,6 @@
     <div id="union-box">
         <div id="top-box-row">
             <div id="top-box-row-container">
-                <div id="filters-container">
-                    #foreach($filter in $filtersData)
-                        #if($filter.type == "DATE")
-                            #set($label = $translations['select_range_of'].replace('{value}', $filter.verboseName))
-                            <div class="filter-field-container filter">
-                                <h4 class="filter-label">$label</h4>
-                                <div class="filter-field-parent-date">
-                                    <input type="date" class="filter-input-date" id="${filter.paramName}-start"
-                                           name="${filter.paramName}">
-                                    <input type="date" class="filter-input-date" id="${filter.paramName}-end"
-                                           name="${filter.paramName}">
-                                </div>
-                            </div>
-                        #elseif($filter.type == "DATETIME")
-                            #set($label = $translations['select_range_of'].replace('{value}', $filter.verboseName))
-                            <div class="filter-field-container filter">
-                                <h4 class="filter-label">$label</h4>
-                                <div class="filter-field-parent-date">
-                                    <input type="datetime-local" class="filter-input-date"
-                                           id="${filter.paramName}-start" name="${filter.paramName}">
-                                    <input type="datetime-local" class="filter-input-date" id="${filter.paramName}-end"
-                                           name="${filter.paramName}">
-                                </div>
-                            </div>
-                        #elseif($filter.type == "ENUMERATION")
-                            #set($label = $translations['select_item_for'].replace('{value}', $filter.verboseName))
-                            <div class="filter-field-container">
-                                <h4 class="filter-label">$label</h4>
-                                <div class="filter-field-parent filter">
-                                    <select class="filter-field" name="${filter.paramName}" id="${filter.paramName}">
-                                        <option value="">-- Select --</option>
-                                        #foreach($value in $filter.values)
-                                            <option value="${value}">${value}</option>
-                                        #end
-                                    </select>
-                                </div>
-                            </div>
-                        #elseif($filter.type == "REFERENCE")
-                            #set($label = $translations['select_item_for'].replace('{value}', $filter.verboseName))
-                            <div class="filter-field-container">
-                                <h4 class="filter-label">$label</h4>
-                                <div class="filter-field-parent filter">
-                                    <select class="filter-field" name="${filter.paramName}" id="${filter.paramName}">
-                                        <option value="">-- Select --</option>
-                                        #foreach($item in $filter.values)
-                                            <option value="${item.itemKey}">${item.item}</option>
-                                        #end
-                                    </select>
-                                </div>
-                            </div>
-                        #elseif($filter.type == "BOOLEAN")
-                            #set($label = $translations['select_boolean'].replace('{value}', $filter.verboseName))
-                            <div class="filter-field-container">
-                                <h4 class="filter-label">$label</h4>
-                                <div class="filter-field-parent filter">
-                                    <select class="filter-field" name="${filter.paramName}" id="${filter.paramName}">
-                                        <option value="">-- Select --</option>
-                                        <option value="on">True</option>
-                                        <option value="off">False</option>
-                                    </select>
-                                </div>
-                            </div>
-                        #end
-                    #end
-                    <button id="filter-submit-button" onclick="onFilterApply()">$translations['filter']</button>
-                </div>
                 <div id="top-box-row-up">
                     <div id="name-container">
                         <h1 id="name" class="istok-web-bold">$pluralName</h1>
@@ -213,6 +148,7 @@
                         <button class="perform-action" onclick="openActionDialog()">$translations['perform']</button>
                         #if($filtersData.size != 0)
                             <div class="filter-button" onclick="toggleFilter()">
+                                <span class="filter-count"></span>
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
                                      xmlns="http://www.w3.org/2000/svg">
                                     <path
@@ -517,6 +453,93 @@
     #end
     </div>
 </div>
+#if($filtersData.size != 0)
+<div class="filter-sidebar" id="filter-sidebar">
+    <div class="filter-sidebar-header">
+        <h3 class="filter-sidebar-title istok-web-bold">$translations['filter']</h3>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+             id="filter-dock-icon" class="filter-sidebar-icon" onclick="toggleFilterDock()">
+            <path d="M2.03 15V9C2.03 4 4.03 2 9.03 2H15.03C20.03 2 22.03 4 22.03 9V15C22.03 20 20.03 22 15.03 22H9.03C4.03 22 2.03 20 2.03 15Z"
+                  stroke="#292D32" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M9.03 2V22" stroke="#292D32" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16.03 9.44L13.47 12L16.03 14.56" stroke="#292D32" stroke-width="1.5" stroke-linecap="round"
+                  stroke-linejoin="round"/>
+        </svg>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"
+             class="filter-sidebar-icon" onclick="closeFilterSidebar()">
+            <path d="M7 7L17 17M17 7L7 17" stroke="#292D32" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+    </div>
+    <div class="filter-sidebar-scroll">
+        #foreach($filter in $filtersData)
+            #if($filter.type == "DATE")
+                #set($label = $translations['select_range_of'].replace('{value}', $filter.verboseName))
+                <div class="filter-field-container filter">
+                    <h4 class="filter-label">$label</h4>
+                    <div class="filter-field-parent-date">
+                        <input type="date" class="filter-input-date" id="${filter.paramName}-start"
+                               name="${filter.paramName}">
+                        <input type="date" class="filter-input-date" id="${filter.paramName}-end"
+                               name="${filter.paramName}">
+                    </div>
+                </div>
+            #elseif($filter.type == "DATETIME")
+                #set($label = $translations['select_range_of'].replace('{value}', $filter.verboseName))
+                <div class="filter-field-container filter">
+                    <h4 class="filter-label">$label</h4>
+                    <div class="filter-field-parent-date">
+                        <input type="datetime-local" class="filter-input-date"
+                               id="${filter.paramName}-start" name="${filter.paramName}">
+                        <input type="datetime-local" class="filter-input-date" id="${filter.paramName}-end"
+                               name="${filter.paramName}">
+                    </div>
+                </div>
+            #elseif($filter.type == "ENUMERATION")
+                #set($label = $translations['select_item_for'].replace('{value}', $filter.verboseName))
+                <div class="filter-field-container">
+                    <h4 class="filter-label">$label</h4>
+                    <div class="filter-field-parent filter">
+                        <select class="filter-field" name="${filter.paramName}" id="${filter.paramName}">
+                            <option value="">-- Select --</option>
+                            #foreach($value in $filter.values)
+                                <option value="${value}">${value}</option>
+                            #end
+                        </select>
+                    </div>
+                </div>
+            #elseif($filter.type == "REFERENCE")
+                #set($label = $translations['select_item_for'].replace('{value}', $filter.verboseName))
+                <div class="filter-field-container">
+                    <h4 class="filter-label">$label</h4>
+                    <div class="filter-field-parent filter">
+                        <select class="filter-field" name="${filter.paramName}" id="${filter.paramName}">
+                            <option value="">-- Select --</option>
+                            #foreach($item in $filter.values)
+                                <option value="${item.itemKey}">${item.item}</option>
+                            #end
+                        </select>
+                    </div>
+                </div>
+            #elseif($filter.type == "BOOLEAN")
+                #set($label = $translations['select_boolean'].replace('{value}', $filter.verboseName))
+                <div class="filter-field-container">
+                    <h4 class="filter-label">$label</h4>
+                    <div class="filter-field-parent filter">
+                        <select class="filter-field" name="${filter.paramName}" id="${filter.paramName}">
+                            <option value="">-- Select --</option>
+                            <option value="on">True</option>
+                            <option value="off">False</option>
+                        </select>
+                    </div>
+                </div>
+            #end
+        #end
+    </div>
+    <div class="filter-sidebar-footer">
+        <button id="filter-submit-button" onclick="onFilterApply()">$translations['filter']</button>
+    </div>
+</div>
+#end
 <div id="loading">
     <div class="spinner"></div>
 </div>

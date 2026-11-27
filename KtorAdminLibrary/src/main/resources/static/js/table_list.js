@@ -5,7 +5,6 @@ function getQueryParam(param) {
 
 function handleFilterInputs() {
     const urlParams = new URLSearchParams(window.location.search);
-    let isAnyFilter = false;
 
     let hasFilters = [...urlParams.keys()].some(key => key.startsWith('filters.'));
     if (!hasFilters) return;
@@ -27,10 +26,8 @@ function handleFilterInputs() {
 
             if (startInput.type === 'date') {
                 startInput.value = startDate.toISOString().split('T')[0];  // Format to 'yyyy-mm-dd'
-                isAnyFilter = true;
             } else if (startInput.type === 'datetime-local') {
                 startInput.value = startDate.toISOString().slice(0, 16);  // Format to 'yyyy-mm-ddTHH:mm'
-                isAnyFilter = true;
             }
         }
 
@@ -41,23 +38,17 @@ function handleFilterInputs() {
 
             if (endInput.type === 'date') {
                 endInput.value = endDate.toISOString().split('T')[0];  // Format to 'yyyy-mm-dd'
-                isAnyFilter = true;
             } else if (endInput.type === 'datetime-local') {
                 endInput.value = endDate.toISOString().slice(0, 16);  // Format to 'yyyy-mm-ddTHH:mm'
-                isAnyFilter = true;
             }
         }
 
         // Handle select input
         if (selectInput && urlParams.has(`filters.${paramName}`)) {
             selectInput.value = urlParams.get(`filters.${paramName}`);
-            isAnyFilter = true;
         }
     });
 
-    if (isAnyFilter) {
-        toggleFilter();
-    }
 }
 
 // Call the function when page loads
@@ -246,6 +237,8 @@ function handleSearches() {
 
 document.addEventListener('DOMContentLoaded', function () {
     handleFilterInputs()
+    updateFilterCount()
+    handleFilterSidebar()
     handleClicks()
     handleInlineBooleanEdits()
     handleInlineCellEdits()
@@ -519,44 +512,122 @@ function generateUrl(fileName, pluralName, fieldName) {
 }
 
 
+// --- Filters side panel ---
+// Slides in from the right like the menu does from the left. It floats over the table, or,
+// once docked with its pin icon, stays open and takes its width from the page (remembered).
+
+const filtersDockedKey = "filtersDocked"
+const filterDockMinWidth = 850 // below this the panel only floats
+
+function getFilterSidebar() {
+    return document.getElementById("filter-sidebar")
+}
+
+function canDockFilters() {
+    return window.innerWidth > filterDockMinWidth
+}
+
+// Reserves room on the right of #container for a docked panel, next to whatever the
+// left menu reserves (its margin-left; see expandSidebar in common.js).
+function applyFilterInset() {
+    const container = document.getElementById("container")
+    const panel = getFilterSidebar()
+    if (!container) return
+    const right = panel && panel.classList.contains("docked") ? 16 + panel.getBoundingClientRect().width : 0
+    const left = parseFloat(container.style.marginLeft) || 0
+    container.style.marginRight = right ? `${right}px` : ""
+    container.style.width = (left || right) ? `calc(100vw - ${left + right + 32}px)` : "100%"
+}
+
+function setFilterSidebar(open, docked) {
+    const panel = getFilterSidebar()
+    if (!panel) return
+    docked = docked && canDockFilters()
+    panel.classList.toggle("open", open || docked)
+    panel.classList.toggle("docked", docked)
+    document.querySelectorAll(".filter-button").forEach(b => b.classList.toggle("active", open || docked))
+    applyFilterInset()
+}
+
 function toggleFilter() {
-    const topBox = document.getElementById("top-box");
-    let rows = document.getElementsByClassName("actions-row")
-    let filters = document.getElementById("filters-container")
-    if (filters.classList.contains("show")) {
-        topBox.style.height = "55px"
-        for (let row of rows) {
-            row.classList.remove("hide")
-        }
-        topBox.classList.remove("show-filters")
-        filters.classList.remove("show")
+    const panel = getFilterSidebar()
+    if (!panel) return
+    if (panel.classList.contains("open")) {
+        closeFilterSidebar()
     } else {
-        let filtersSize = filters.getBoundingClientRect();
-        for (let row of rows) {
-            row.classList.add("hide")
-        }
-        filters.classList.add("show")
-        topBox.classList.add("show-filters")
-        topBox.style.height = `${filtersSize.height + 24 + 55}px`;
+        setFilterSidebar(true, false)
     }
+}
+
+function closeFilterSidebar() {
+    localStorage.removeItem(filtersDockedKey)
+    setFilterSidebar(false, false)
+}
+
+function toggleFilterDock() {
+    const panel = getFilterSidebar()
+    if (!panel) return
+    if (panel.classList.contains("docked")) {
+        localStorage.removeItem(filtersDockedKey)
+        setFilterSidebar(true, false)
+    } else {
+        localStorage.setItem(filtersDockedKey, "true")
+        setFilterSidebar(true, true)
+    }
+}
+
+function handleFilterSidebar() {
+    const panel = getFilterSidebar()
+    if (!panel) return
+
+    // Open docked without animating, like the left menu does.
+    if (localStorage.getItem(filtersDockedKey) === "true" && canDockFilters()) {
+        const container = document.getElementById("container")
+        const animated = [panel, container]
+        animated.forEach(el => el && el.classList.add("no-animation"))
+        setFilterSidebar(true, true)
+        setTimeout(() => animated.forEach(el => el && el.classList.remove("no-animation")), 500)
+    }
+
+    // A floating panel closes on Escape or a click outside it.
+    document.addEventListener("click", event => {
+        if (!panel.classList.contains("open") || panel.classList.contains("docked")) return
+        if (panel.contains(event.target) || event.target.closest(".filter-button")) return
+        setFilterSidebar(false, false)
+    })
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && panel.classList.contains("open") && !panel.classList.contains("docked")) {
+            setFilterSidebar(false, false)
+        }
+    })
+
+    // Dock or undock when the window crosses the width where docking is allowed.
+    let wasWide = canDockFilters()
+    window.addEventListener("resize", () => {
+        const wide = canDockFilters()
+        if (wide === wasWide) return
+        wasWide = wide
+        if (localStorage.getItem(filtersDockedKey) === "true") setFilterSidebar(wide, wide)
+    })
+}
+
+// Shows how many filters the current URL applies on the filter buttons.
+function updateFilterCount() {
+    const urlParams = new URLSearchParams(window.location.search)
+    const names = new Set()
+    urlParams.forEach((value, key) => {
+        if (key.startsWith("filters.") && value !== "") names.add(key.slice(8).replace(/-(start|end)$/, ""))
+    })
+    document.querySelectorAll(".filter-button .filter-count").forEach(badge => {
+        badge.textContent = names.size ? String(names.size) : ""
+        badge.classList.toggle("show", names.size > 0)
+    })
 }
 
 
 function closeFiltersOrNavigateToAdd() {
-    let topBox = document.getElementById("top-box")
-    let filters = document.getElementById("filters-container")
-    let rows = document.getElementsByClassName("actions-row")
-    if (filters.classList.contains("show")) {
-        filters.classList.remove("show")
-        topBox.classList.remove("show-filters")
-        topBox.style.height = "55px"
-        for (let row of rows) {
-            row.classList.remove("hide")
-        }
-    } else {
-        saveListPosition(null)
-        window.location.href = cleanUrl().toString() + "/add" + returnToQuery()
-    }
+    saveListPosition(null)
+    window.location.href = cleanUrl().toString() + "/add" + returnToQuery()
 }
 
 function openActionDialog() {
