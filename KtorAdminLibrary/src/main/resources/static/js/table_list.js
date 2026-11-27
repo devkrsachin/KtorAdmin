@@ -239,6 +239,7 @@ document.addEventListener('DOMContentLoaded', function () {
     handleFilterInputs()
     updateFilterCount()
     handleFilterSidebar()
+    handleCellViewer()
     handleClicks()
     handleInlineBooleanEdits()
     handleInlineCellEdits()
@@ -596,6 +597,8 @@ function handleFilterSidebar() {
         setFilterSidebar(false, false)
     })
     document.addEventListener("keydown", event => {
+        // The cell viewer sits on top, so Escape closes that first.
+        if (document.querySelector("#cell-viewer.open")) return
         if (event.key === "Escape" && panel.classList.contains("open") && !panel.classList.contains("docked")) {
             setFilterSidebar(false, false)
         }
@@ -621,6 +624,102 @@ function updateFilterCount() {
     document.querySelectorAll(".filter-button .filter-count").forEach(badge => {
         badge.textContent = names.size ? String(names.size) : ""
         badge.classList.toggle("show", names.size > 0)
+    })
+}
+
+
+// --- Full cell content viewer ---
+// Cells cut off with an ellipsis get an expand button on hover that opens the whole value
+// in a panel on the right (pretty-printed when it is JSON).
+
+let cellViewerSource = null // the cell being shown, highlighted while the viewer is open
+
+function isCellTruncated(text) {
+    return text.scrollWidth > text.clientWidth + 1
+}
+
+function columnNameForCell(td) {
+    const th = document.querySelectorAll("thead tr th")[td.cellIndex]
+    const name = th && th.querySelector(".column-name")
+    return name ? name.textContent.replace(/\s+/g, " ").trim() : ""
+}
+
+function formatCellValue(value) {
+    const trimmed = value.trim()
+    if (/^[\[{]/.test(trimmed)) {
+        try {
+            return JSON.stringify(JSON.parse(trimmed), null, 2)
+        } catch (_) {
+        }
+    }
+    return value
+}
+
+function openCellViewer(td) {
+    const viewer = document.getElementById("cell-viewer")
+    const text = td.querySelector(".item-text")
+    if (!viewer || !text) return
+    document.getElementById("cell-viewer-title").textContent = columnNameForCell(td)
+    document.getElementById("cell-viewer-content").textContent = formatCellValue(text.textContent)
+    if (cellViewerSource) cellViewerSource.classList.remove("cell-viewer-source")
+    cellViewerSource = td
+    td.classList.add("cell-viewer-source")
+    viewer.classList.add("open")
+}
+
+function closeCellViewer() {
+    const viewer = document.getElementById("cell-viewer")
+    if (viewer) viewer.classList.remove("open")
+    if (cellViewerSource) cellViewerSource.classList.remove("cell-viewer-source")
+    cellViewerSource = null
+}
+
+function copyCellViewerContent() {
+    const content = document.getElementById("cell-viewer-content").textContent
+    navigator.clipboard.writeText(content).then(
+        () => showAlert("Copied", "success", 1500),
+        () => showAlert("Couldn't copy to the clipboard", "error"),
+    )
+}
+
+function handleCellViewer() {
+    const viewer = document.getElementById("cell-viewer")
+    const tbody = document.querySelector("#bottom-box tbody")
+    if (!viewer || !tbody) return
+
+    const button = document.createElement("button")
+    button.type = "button"
+    button.className = "cell-expand-button"
+    button.title = "View full cell content"
+    button.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+        '<path d="M14 3H21V10M10 21H3V14M21 3L13.5 10.5M3 21L10.5 13.5" stroke="#292D32" stroke-width="1.8" ' +
+        'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    button.addEventListener("click", event => {
+        event.stopPropagation() // don't open the row's edit page
+        const td = button.closest("td")
+        if (td) openCellViewer(td)
+    })
+
+    // Show the button only on cells whose text is cut off.
+    tbody.addEventListener("mouseover", event => {
+        const td = event.target.closest("td")
+        if (!td || td === button.parentElement) return
+        const text = td.querySelector(".item-text")
+        if (text && !td.querySelector(".inline-edit-input") && isCellTruncated(text)) {
+            td.appendChild(button)
+        } else if (button.parentElement) {
+            button.remove()
+        }
+    })
+    tbody.addEventListener("mouseleave", () => button.remove())
+
+    document.addEventListener("click", event => {
+        if (!viewer.classList.contains("open")) return
+        if (viewer.contains(event.target) || event.target.closest(".cell-expand-button")) return
+        closeCellViewer()
+    })
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && viewer.classList.contains("open")) closeCellViewer()
     })
 }
 
