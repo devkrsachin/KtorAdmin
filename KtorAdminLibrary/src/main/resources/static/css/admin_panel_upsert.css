@@ -823,3 +823,11 @@ path {
         justify-content: center;
     }
 }
+
+.local-datetime-zone {
+    display: block;
+    margin-top: 4px;
+    padding-left: 8px;
+    font-size: 12px;
+    opacity: .6;
+}

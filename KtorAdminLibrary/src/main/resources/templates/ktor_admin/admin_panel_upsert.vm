@@ -265,10 +265,17 @@
                             #end
 
                             <!-- DATETIME -->
-                            #if($column.type.name == "DATETIME" || $column.type.name == "TIMESTAMP_WITH_TIMEZONE")
+                            #if($column.type.name == "DATETIME")
                                 <input type="datetime-local" class="form-input" name="$column.columnName"
                                        value="$!defaultValue"
                                        #if($column.readOnly)readonly#end/>
+                            #end
+                            #if($column.type.name == "TIMESTAMP_WITH_TIMEZONE")
+                                <input type="datetime-local" class="form-input local-datetime-input"
+                                       name="$column.columnName" value="$!defaultValue"
+                                       data-server-zone="$serverTimeZone"
+                                       #if($column.readOnly)readonly#end/>
+                                <small class="local-datetime-zone"></small>
                             #end
 
 
@@ -497,5 +504,6 @@
 <script src="/static/js/common.js"></script>
 <script src="/static/js/autocomplete.js"></script>
 <script src="/static/js/upsert_admin.js"></script>
+<script src="/static/js/local_datetime.js"></script>
 </body>
 </html>

@@ -46,7 +46,14 @@ internal fun Any?.formatToDisplayInCollection(fieldType: FieldType): String =
 
 internal fun Any?.formatToDisplayInUpsert(columnType: ColumnType): String =
     when {
-        this is Timestamp && (columnType == ColumnType.DATETIME || columnType == ColumnType.TIMESTAMP_WITH_TIMEZONE) -> {
+        // Written in the configured time zone, the same zone String.toOffsetDateTime() parses
+        // the submitted value in, so the edit form round-trips the instant.
+        this is Timestamp && columnType == ColumnType.TIMESTAMP_WITH_TIMEZONE -> {
+            val formatter = DateTimeFormatter.ofPattern(Constants.LOCAL_DATETIME_FORMAT)
+            toInstant().atZone(DynamicConfiguration.timeZone).format(formatter)
+        }
+
+        this is Timestamp && columnType == ColumnType.DATETIME -> {
             val formatter = DateTimeFormatter.ofPattern(Constants.LOCAL_DATETIME_FORMAT)
             toLocalDateTime().format(formatter)
         }

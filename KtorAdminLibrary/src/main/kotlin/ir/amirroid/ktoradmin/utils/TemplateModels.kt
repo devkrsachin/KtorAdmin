@@ -91,6 +91,7 @@ internal suspend fun MutableMap<String, Any>.addCommonModels(
                 put("menus", provider.invoke(name))
             }
             put("adminPath", DynamicConfiguration.adminPath)
+            put("serverTimeZone", DynamicConfiguration.timeZone.id)
             put("hasAuthenticate", DynamicConfiguration.authenticateName != null)
             val translator = applicationCall.translator
             val translators = DynamicConfiguration.translators
