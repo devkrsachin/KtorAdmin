@@ -252,11 +252,68 @@ document.addEventListener('DOMContentLoaded', function () {
     handleSearches()
 });
 
+// Hides the header while the table is scrolled down and shows it again as soon as it is
+// scrolled up, like Android's top app bar with "enterAlways". Collapsing it hands its height
+// to the table, which is the scroller.
+function handleCollapsingHeader() {
+    const container = document.getElementById("container");
+    const header = document.getElementById("header");
+    const scroller = document.getElementById("bottom-box");
+    if (!container || !header || !scroller) return;
+
+    const threshold = 8;          // px of scrolling before reacting, to ignore jitter
+    const settleMs = 250;         // a bit longer than the CSS transition
+    let last = scroller.scrollTop;
+    let settling = false;
+
+    function setCollapsed(collapsed) {
+        if (container.classList.contains("header-collapsed") === collapsed) return;
+        container.classList.toggle("header-collapsed", collapsed);
+        // The table's height changes while the header animates, which can clamp scrollTop
+        // and fire scroll events of its own. Ignore those until the layout settles.
+        settling = true;
+        setTimeout(() => {
+            settling = false;
+            last = scroller.scrollTop;
+        }, settleMs);
+    }
+
+    scroller.addEventListener("scroll", () => {
+        const top = scroller.scrollTop;
+        if (settling) {
+            last = top;
+            return;
+        }
+        if (top <= 0) {
+            setCollapsed(false);
+            last = top;
+            return;
+        }
+        const delta = top - last;
+        if (Math.abs(delta) < threshold) return;
+        last = top;
+
+        if (delta > 0) {
+            // Keep it while something in the header (e.g. search) has focus.
+            if (top > header.offsetHeight && !header.contains(document.activeElement)) setCollapsed(true);
+        } else {
+            setCollapsed(false);
+        }
+    }, {passive: true});
+}
+
+function initListPosition() {
+    restoreListPosition()
+    // Start after the restored scroll has been dispatched, so returning to the list
+    // doesn't collapse the header by itself.
+    requestAnimationFrame(() => requestAnimationFrame(handleCollapsingHeader))
+}
+
 // Restore after layout is final (fonts, images), so the saved offsets line up.
 if (document.readyState === "complete") {
-    restoreListPosition()
+    initListPosition()
 } else {
-    window.addEventListener("load", restoreListPosition, {once: true})
+    window.addEventListener("load", initListPosition, {once: true})
 }
 
 function performSearch(element) {
