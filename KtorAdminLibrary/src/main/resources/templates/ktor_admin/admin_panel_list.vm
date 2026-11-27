@@ -448,18 +448,17 @@
                 <h4 class="group-text">$dashboardGroup.group</h4>
             #end
             #foreach($entry in $dashboardGroup.entries)
-                <button class="menu-item #if($entry.path == $currentPagePath) selected #end"
-                        onclick="openDashboardByPath('$entry.path')">
+                <a class="menu-item #if($entry.path == $currentPagePath) selected #end" href="/$adminPath/resources/$entry.path">
                     #if($entry.icon)
                         <div class="menu-icon"
                              style="-webkit-mask: url('$entry.icon') no-repeat center / contain; mask: url('$entry.icon') no-repeat center / contain;"></div>
                     #end
                     <span class="sidebar-item-name">$entry.title</span>
-                </button>
+                </a>
             #end
         #end
     #else
-        <button class="menu-item" onclick="openDashboardByPath('')">
+        <a class="menu-item" href="/$adminPath">
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg"
                  class="menu-icon">
                 <path
@@ -480,14 +479,13 @@
                         stroke-linejoin="round"/>
             </svg>
             $translations['dashboard']
-        </button>
+        </a>
     #end
     #foreach($group in $panelGroups)
         <h4 class="group-text">$group.group</h4>
         #foreach($panel in $group.panels)
             #set($capitalizedPanel = $panel.pluralName.substring(0,1).toUpperCase() + $panel.pluralName.substring(1))
-            <button class="menu-item #if($panel.pluralName == $currentPanel) selected #end"
-                    onclick="openPanel('$panel.pluralName')">
+            <a class="menu-item #if($panel.pluralName == $currentPanel) selected #end" href="/$adminPath/resources/$panel.pluralName">
                 #if($panel.iconFile)
                     <div class="menu-icon"
                          style="-webkit-mask: url('$panel.iconFile') no-repeat center / contain; mask: url('$panel.iconFile') no-repeat center / contain;"></div>
@@ -500,21 +498,20 @@
                 #end
                 <span class="sidebar-item-name">$capitalizedPanel</span> <span
                     class="sidebar-item-count">$!counts[$panelName]</span>
-            </button>
+            </a>
         #end
     #end
     #if($customPageGroups)
         #foreach($pageGroup in $customPageGroups)
             <h4 class="group-text">$pageGroup.group</h4>
             #foreach($page in $pageGroup.pages)
-                <button class="menu-item #if($page.path == $currentPagePath) selected #end"
-                        onclick="openCustomPage('$page.path')">
+                <a class="menu-item #if($page.path == $currentPagePath) selected #end" href="/$adminPath/resources/$page.path">
                     #if($page.icon)
                         <div class="menu-icon"
                              style="-webkit-mask: url('$page.icon') no-repeat center / contain; mask: url('$page.icon') no-repeat center / contain;"></div>
                     #end
                     <span class="sidebar-item-name">$page.title</span>
-                </button>
+                </a>
         #end
     #end
     #end
